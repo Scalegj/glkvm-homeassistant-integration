@@ -1,1 +1,1 @@
-The PiKVM custom integration for Home Assistant.
+The GLKVM custom integration for Home Assistant.

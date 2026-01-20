@@ -1,20 +1,22 @@
-"""Handle certificate-related operations for PiKVM integration.
-The PiKVM uses non-standard certificates, so we need to handle them manually.
-Some of the expected certificatet types are:
+"""Handle certificate-related operations for GLKVM integration.
+
+The GLKVM uses non-standard certificates, so we need to handle them manually.
+Some of the expected certificate types are:
 - Non-TLSV3 compliant self-signed certificates by default.
 - TLSV3 self-signed certificates
 - TLSV3 certificates signed by self-signed CA
 - TLSV3 certificates signed by a CA
-The workarounds found in this cert_handler.py are intended to allow operation
-under all circumstances assuming the PiKVM was correctly configured and not 
-currently being intercepted.  The PiKVM public certificate will be recorded
-during the time of the initial setup and stored in the Home Assistant configuration.
-When loaded, the certificate will be used to establish a secure connection to the PiKVM.
-Due to this, we are able to bypass the certificate verification process and establish
-a secure connection to the PiKVM.
 
-This module provides functions to fetch and serialize the certificate from the device. 
-It also provides a function to check if the device is a PiKVM and return its serial number.
+The workarounds found in this cert_handler.py are intended to allow operation
+under all circumstances assuming the GLKVM was correctly configured and not
+currently being intercepted. The GLKVM public certificate will be recorded
+during the time of the initial setup and stored in the Home Assistant configuration.
+When loaded, the certificate will be used to establish a secure connection to the GLKVM.
+Due to this, we are able to bypass the certificate verification process and establish
+a secure connection to the GLKVM.
+
+This module provides functions to fetch and serialize the certificate from the device.
+It also provides a function to check if the device is a GLKVM and return its serial number.
 """
 
 from collections import namedtuple
@@ -147,15 +149,15 @@ def format_url(input_url):
     return input_url.rstrip("/")
 
 
-PiKVMResponse = namedtuple(
-    "PiKVMResponse", ["success", "model", "serial", "name", "error"]
+GLKVMResponse = namedtuple(
+    "GLKVMResponse", ["success", "model", "serial", "name", "error"]
 )
 
 
-async def is_pikvm_device(
+async def is_glkvm_device(
     hass: HomeAssistant | None, url: str, username: str, password: str, cert: str
 ) -> tuple:
-    """Check if the device is a PiKVM and return its serial number.
+    """Check if the device is a GLKVM and return its serial number.
 
     Args:
       hass: HomeAssistant instance.
@@ -170,7 +172,7 @@ async def is_pikvm_device(
 
     """
     url = format_url(url)
-    _LOGGER.debug("Checking PiKVM device at %s with username %s", url, username)
+    _LOGGER.debug("Checking GLKVM device at %s with username %s", url, username)
 
     try:
         if hass is not None:
@@ -179,7 +181,7 @@ async def is_pikvm_device(
             session, cert_file_path = await create_session_with_cert(None, cert)
         if not session:
             _LOGGER.error("Failed to create session")
-            return PiKVMResponse(False, None, None, None, "HomeAssistantNoneError")
+            return GLKVMResponse(False, None, None, None, "HomeAssistantNoneError")
 
         if hass is not None:
             response = await hass.async_add_executor_job(
@@ -202,34 +204,48 @@ async def is_pikvm_device(
 
         if data.get("ok", False):
             result = data.get("result", {})
-            hw = result.get("hw", {})
-            platform = hw.get("platform", {})
+            system = result.get("system", {})
+            platform = system.get("platform", {})
             meta = result.get("meta", {})
             server = meta.get("server", {})
 
-            serial = platform.get(CONF_SERIAL, None).lower()
-            model = platform.get(CONF_MODEL, None)
-            name = server.get(CONF_HOST, None)
+            _LOGGER.debug("Platform info: %s", platform)
+            _LOGGER.debug("System info: %s", system)
 
-            _LOGGER.debug("Extracted serial number: %s", serial)
-            return PiKVMResponse(True, model, serial, name, None)
+            serial = platform.get(CONF_SERIAL)
+            # Use base field for model (e.g., "Rockchip RV1126B-P EVB V14 Board")
+            model = platform.get("base") or platform.get(CONF_MODEL)
+            name = server.get(CONF_HOST)
+
+            # Handle devices that may not return serial
+            if serial:
+                serial = serial.lower()
+            else:
+                _LOGGER.warning("Device did not return a serial number, generating fallback")
+                serial = f"glkvm-{url.replace('https://', '').replace('http://', '').replace('.', '-').replace(':', '-')}"
+
+            if not model:
+                model = "GLKVM"
+
+            _LOGGER.debug("Extracted serial number: %s, model: %s", serial, model)
+            return GLKVMResponse(True, model, serial, name, None)
 
         _LOGGER.error("Device check failed: 'ok' key not present or false")
-        return PiKVMResponse(False, None, None, None, "GenericException")
+        return GLKVMResponse(False, None, None, None, "GenericException")
 
     except requests.exceptions.RequestException as err:
         # Handle HTTP errors by returning a code which contains the status code
-        _LOGGER.error("RequestException checking PiKVM device at %s: %s", url, err)
+        _LOGGER.error("RequestException checking GLKVM device at %s: %s", url, err)
         error_code = (
             f"Exception_HTTP{err.response.status_code}"
             if err.response
             else "Exception_HTTP"
         )
-        return PiKVMResponse(False, None, None, None, error_code)
+        return GLKVMResponse(False, None, None, None, error_code)
 
     except ValueError as err:
         _LOGGER.error("ValueError while parsing response JSON from %s: %s", url, err)
-        return PiKVMResponse(False, None, None, None, "Exception_JSON")
+        return GLKVMResponse(False, None, None, None, "Exception_JSON")
 
     finally:
         if cert_file_path and os.path.exists(cert_file_path):

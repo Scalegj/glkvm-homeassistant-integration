@@ -1,4 +1,4 @@
-"""Diagnostics for PiKVM integration."""
+"""Diagnostics for GLKVM integration."""
 
 from collections.abc import Mapping
 import json

@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "url": "URL or IP address of the KVM device",
+          "password": "Password for KVM"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "The device is already configured in Home Assistant, and the information is now updated."
+    },
+    "error": {
+      "cannot_fetch_cert": "Cannot fetch certificate",
+      "cannot_connect": "Cannot connect to KVM device",
+      "Exception_HTTP403": "Invalid password",
+      "Exception_HTTP502": "Bad Gateway. KVM isn't ready yet."
+    }
+  }
+}

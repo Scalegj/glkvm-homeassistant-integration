@@ -1,4 +1,4 @@
-"""Manages fetching data from the PiKVM API."""
+"""Manages fetching data from the GLKVM API."""
 
 import asyncio
 from datetime import timedelta
@@ -12,8 +12,8 @@ from requests.auth import HTTPBasicAuth
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .cert_handler import create_session_with_cert  # Import the function
-from .const import DOMAIN
+from .cert_handler import create_session_with_cert
+from .const import DOMAIN, API_INFO, API_ATX
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,8 +29,8 @@ class AuthenticationFailed(Exception):
     """Custom exception for authentication failures."""
 
 
-class PiKVMDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the PiKVM API."""
+class GLKVMDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching data from the GLKVM API."""
 
     url: str = ""
 
@@ -52,16 +52,13 @@ class PiKVMDataUpdateCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=timedelta(seconds=30),
         )
-        # Create the session initially
 
     async def async_setup(self) -> None:
         """Async setup method to create session and handle async code."""
-        # Create the session asynchronously
         await self._create_session()
 
     async def _create_session(self):
         """Create the session with the certificate."""
-        # self.auth is already defined in __init__
         self.auth = HTTPBasicAuth(self.username, self.password)
         session_with_cert = await create_session_with_cert(self.cert)
         self.session, self.cert_file_path = session_with_cert
@@ -71,48 +68,58 @@ class PiKVMDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Session created successfully")
 
     async def _async_update_data(self):
-        """Fetch data from PiKVM API."""
+        """Fetch data from GLKVM API."""
         max_retries = 5
-        backoff_time = 2  # Initial backoff time in seconds
-        retries = 0
+        backoff_time = 2
 
+        retries = 0
         while retries < max_retries:
             try:
-                _LOGGER.debug("Fetching PiKVM Info & MSD at %s", self.url)
+                _LOGGER.debug("Fetching GLKVM Info at %s", self.url)
 
                 if not self.session:
-                    self._create_session()
+                    await self._create_session()
 
+                # Fetch device info
                 response = await self.hass.async_add_executor_job(
                     functools.partial(
                         self.session.get,
-                        f"{self.url}/api/info",
+                        f"{self.url}{API_INFO}",
                         auth=self.auth,
                         timeout=10,
                     )
                 )
 
                 if response.status_code == 401:
-                    raise AuthenticationFailed("Invalid username or password")  # noqa: TRY301
+                    raise AuthenticationFailed("Invalid username or password")
 
                 response.raise_for_status()
-                data_info = response.json()["result"]
+                data_info = response.json().get("result", {})
 
-                response_msd = await self.hass.async_add_executor_job(
-                    functools.partial(
-                        self.session.get,
-                        f"{self.url}/api/msd",
-                        auth=self.auth,
-                        timeout=10,
+                # Fetch ATX status
+                try:
+                    response_atx = await self.hass.async_add_executor_job(
+                        functools.partial(
+                            self.session.get,
+                            f"{self.url}{API_ATX}",
+                            auth=self.auth,
+                            timeout=10,
+                        )
                     )
-                )
-                response_msd.raise_for_status()
-                data_msd = response_msd.json()["result"]
+                    if response_atx.status_code == 200:
+                        data_atx = response_atx.json().get("result", {})
+                        data_info["atx"] = data_atx
+                        _LOGGER.debug("ATX status: %s", data_atx)
+                    else:
+                        _LOGGER.debug("ATX endpoint not available (status %s)", response_atx.status_code)
+                        data_info["atx"] = {}
+                except Exception as atx_err:
+                    _LOGGER.debug("Could not fetch ATX status: %s", atx_err)
+                    data_info["atx"] = {}
 
-                data_info["msd"] = data_msd
-                _LOGGER.debug("Received PiKVM Info & MSD from %s", self.url)
+                _LOGGER.debug("Received GLKVM Info from %s", self.url)
+                return data_info
 
-                return data_info  # noqa: TRY300
             except AuthenticationFailed as auth_err:
                 _LOGGER.error("Authentication failed: %s", auth_err)
                 raise UpdateFailed(f"Authentication failed: {auth_err}") from auth_err
@@ -125,7 +132,7 @@ class PiKVMDataUpdateCoordinator(DataUpdateCoordinator):
                         backoff_time,
                     )
                     await asyncio.sleep(backoff_time)
-                    backoff_time *= 2  # Exponential backoff
+                    backoff_time *= 2
                 else:
                     _LOGGER.error(
                         "Max retries exceeded. Error communicating with API: %s", err
@@ -138,3 +145,5 @@ class PiKVMDataUpdateCoordinator(DataUpdateCoordinator):
                 if self.cert_file_path and os.path.exists(self.cert_file_path):
                     os.remove(self.cert_file_path)
         return None
+
+

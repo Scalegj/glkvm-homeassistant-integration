@@ -1,6 +1,7 @@
 __pycache__
 *.pyc
 .coverage
+.idea
 
 # Home Assistant config directory (created by docker-compose)
 ha_config/
