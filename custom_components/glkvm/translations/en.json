@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "host": "Host",
+          "username": "Username",
+          "password": "Password",
+          "totp_secret": "TOTP secret (only if 2FA is enabled)",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "verify_ssl": "Leave off unless you installed a trusted certificate on the KVM. GL.iNet KVMs ship with a self-signed certificate."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate GL.iNet KVM",
+        "description": "The KVM rejected the stored credentials. Enter the current password, and the TOTP secret if 2FA is enabled.",
+        "data": {
+          "password": "Password",
+          "totp_secret": "TOTP secret (only if 2FA is enabled)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure GL.iNet KVM",
+        "description": "Change the address used to reach this KVM.",
+        "data": {
+          "host": "Host",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "totp_required": "2FA is enabled on this KVM. Enter its TOTP secret.",
+      "totp_not_enabled": "2FA is not enabled on this KVM. Leave this field empty.",
+      "invalid_auth_totp": "Invalid password or TOTP secret",
+      "invalid_totp_secret": "That doesn't look like a valid TOTP secret (letters A-Z and digits 2-7)",
+      "ssl_error": "Certificate verification failed. Turn off \"Verify SSL certificate\" if the KVM uses its default self-signed certificate.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This KVM is already set up. Its address has been updated if it changed.",
+      "reauth_successful": "Re-authentication was successful",
+      "reconfigure_successful": "Reconfiguration was successful",
+      "unique_id_mismatch": "That is a different KVM than the one originally configured"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "usb_connected": { "name": "USB connected" }
+    },
+    "button": {
+      "force_off": { "name": "Force off" },
+      "reset": { "name": "Reset" }
+    },
+    "select": {
+      "msd_image": { "name": "Virtual media" },
+      "edid": { "name": "EDID" }
+    },
+    "switch": {
+      "power": { "name": "Power"},
+      "jiggler": { "name": "Mouse jiggler" }
+    }
+  }
+}

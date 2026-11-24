@@ -1,0 +1,21 @@
+{
+  "entity": {
+    "button": {
+      "force_off": { "default": "mdi:power-off" }
+    },
+    "select": {
+      "msd_image": { "default": "mdi:disc" },
+      "edid": { "default": "mdi:monitor" }
+    },
+    "switch": {
+      "power": {
+        "default": "mdi:power",
+        "state": { "off": "mdi:power-off" }
+      },
+      "jiggler": {
+        "default": "mdi:cursor-move",
+        "state": { "off": "mdi:cursor-default" }
+      }
+    }
+  }
+}
