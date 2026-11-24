@@ -1,4 +1,4 @@
 homeassistant==2026.11.3
 pytest-homeassistant==2026.11.3
-pyotp==2.10.0
+pyotp==2.12.1
 ruff==0.17.6
